@@ -253,10 +253,13 @@ def upload_files(upload_files_req):
     query_req.boinc_names = upload_files_req.boinc_names
     query_req_xml = query_req.to_xml()
     reply = do_http_post(query_req_xml, upload_files_req.project, 'job_file.php')
-    if reply[0].tag == 'error':
+    if reply.find('error') is not None:
         return reply
 
-    absent = reply.find('absent_files').findall('file')
+    try:
+        absent = reply.find('absent_files').findall('file')
+    except:
+        absent = []
     #print 'query files succeeded; ',len(absent), ' files need upload'
     boinc_names = []
     local_names = []
