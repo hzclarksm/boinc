@@ -116,6 +116,7 @@ function get_batch_output_files($auth_str) {
     }
     do_download($zip_filename);
     unlink($zip_filename);
+    unlink($zip_basename);
 }
 
 // return a single output file of a WU's canonical instance

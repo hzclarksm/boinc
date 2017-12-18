@@ -1011,7 +1011,13 @@ function do_download($path,$name="") {
     header('Pragma: public');
     header('Content-Length: ' . filesize($path));
     flush();
-    readfile($path);
+//  readfile($path);
+    $chunksize = 4*(1024*1024);
+    $handle = fopen($path, 'rb');
+    while (!feof($handle)) {
+        $buffer = fread($handle, $chunksize);
+        echo $buffer;
+    }
 }
 
 function redirect_to_secure_url($url) {
