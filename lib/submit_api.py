@@ -1,6 +1,6 @@
 # This file is part of BOINC.
 # http://boinc.berkeley.edu
-# Copyright (C) 2016 University of California
+# Copyright (C) 2020 University of California
 #
 # BOINC is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License
@@ -17,12 +17,14 @@
 
 
 # Python bindings of the remote job submission and file management APIs
+# See https://boinc.berkeley.edu/trac/wiki/RemoteJobs#Pythonbinding
 
 import urllib
+import urllib2
 import copy
 import xml.etree.ElementTree as ET
 import requests
-    # you'll need to "yip install requests"
+    # you'll need to "pip install requests"
 import hashlib
 
 # describes an input file
@@ -61,6 +63,8 @@ class JOB_DESC:
             xml += '%s\n'%self.input_template
         if hasattr(self, 'output_template'):
             xml += '%s\n'%self.output_template
+        if hasattr(self, 'priority'):
+            xml += '<priority>%d</priority>\n'%(self.priority)
         if hasattr(self, 'files'):
             for file in self.files:
                 xml += file.to_xml()
@@ -88,6 +92,11 @@ class BATCH_DESC:
         if hasattr(self, 'app_version_num'):
             xml += '<app_version_num>%d</app_version_num>\n'%(self.app_version_num)
 
+        if hasattr(self, 'allocation_priority'):
+            if self.allocation_priority:
+                xml += '<allocation_priority/>\n'
+        if hasattr(self, 'priority'):
+            xml += '<priority>%d</priority>\n'%(self.priority)
         for job in self.jobs:
             xml += job.to_xml()
         xml += '</batch>\n</%s>\n' %(op)
@@ -111,16 +120,25 @@ class REQUEST:
     def __init__(self):
         return
 
+rpc_timeout = 0
+
 def do_http_post(req, project_url, handler='submit_rpc_handler.php'):
-    #print req
+    #print(req)
     url = project_url + handler
     params = urllib.urlencode({'request': req})
-    f = urllib.urlopen(url, params)
+    if rpc_timeout>0:
+        f = urllib2.urlopen(url, params, rpc_timeout)
+    else:
+        f = urllib2.urlopen(url, params)
     reply = f.read()
-    #print "REPLY:", reply
+    #print("REPLY:", reply)
     return ET.fromstring(reply)
 
 ########### API FUNCTIONS START HERE ###############
+
+def set_timeout(x):
+    global rpc_timeout
+    rpc_timeout = x
 
 def abort_batch(req):
     req_xml = ('<abort_batch>\n'
@@ -165,6 +183,13 @@ def query_batches(req):
     ) %(req.authenticator, 1 if req.get_cpu_time else 0)
     return do_http_post(req_xml, req.project)
 
+def query_batches_status(req):
+    req_xml = ('<query_batches_status>\n'
+    '<authenticator>%s</authenticator>\n'
+    '</query_batches_status>\n'
+    ) %(req.authenticator)
+    return do_http_post(req_xml, req.project)
+
 def query_completed_job(req):
     req_xml = ('<query_completed_job>\n'
     '<authenticator>%s</authenticator>\n'
@@ -207,7 +232,7 @@ def submit_batch(req):
 #
 def check_error(response):
     if response.find('error') is not None:
-         print 'BOINC server error: ', response.find('error').find('error_msg').text
+         print('BOINC server error: ', response.find('error').find('error_msg').text)
          return True
 
 ############ FILE MANAGEMENT API ##############
@@ -253,10 +278,13 @@ def upload_files(upload_files_req):
     query_req.boinc_names = upload_files_req.boinc_names
     query_req_xml = query_req.to_xml()
     reply = do_http_post(query_req_xml, upload_files_req.project, 'job_file.php')
-    if reply[0].tag == 'error':
+    if reply.find('error') is not None:
         return reply
 
-    absent = reply.find('absent_files').findall('file')
+    try:
+        absent = reply.find('absent_files').findall('file')
+    except:
+        absent = []
     #print 'query files succeeded; ',len(absent), ' files need upload'
     boinc_names = []
     local_names = []
@@ -278,10 +306,10 @@ def upload_files(upload_files_req):
 
     url = upload_files_req.project + '/job_file.php'
     req_xml = upload_files_req.to_xml()
-    #print req_xml
+    #print(req_xml)
     req = {'request': req_xml}
     reply = requests.post(url, data=req, files=files)
-    #print "reply text: ", reply.text
+    #print("reply text: ", reply.text)
     return ET.fromstring(reply.text)
 
 # returns an XML object with various job counts
