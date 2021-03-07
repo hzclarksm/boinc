@@ -34,6 +34,8 @@
 #include <dlfcn.h>
 #endif
 
+extern bool main_exited;
+
 // some of the Android stuff below causes seg faults on some devices.
 // Disable by default.
 // Set this to enable it.
@@ -104,7 +106,7 @@ extern int diagnostics_set_aborted_via_gui(void);
 
 // Log rotation
 extern int diagnostics_cycle_logs(void);
-extern void diagnostics_set_max_file_sizes(int stdout_size, int stderr_size);
+extern void diagnostics_set_max_file_sizes(double stdout_size, double stderr_size);
 
 // Thread Tracking
 extern int diagnostics_init_thread_list(void);
@@ -129,8 +131,8 @@ extern UINT WINAPI diagnostics_unhandled_exception_monitor(LPVOID lpParameter);
 extern LONG CALLBACK boinc_catch_signal(EXCEPTION_POINTERS *ExceptionInfo);
 #else
 #ifdef HAVE_SIGACTION
-typedef void (*handler_t)(int, struct siginfo *, void *);
-extern void boinc_catch_signal(int signal, struct siginfo *siginfo, void *sigcontext);
+typedef void (*handler_t)(int, siginfo_t*, void *);
+extern void boinc_catch_signal(int signal, siginfo_t *siginfo, void *sigcontext);
 #else
 typedef void (*handler_t)(int);
 extern void boinc_catch_signal(int signal);

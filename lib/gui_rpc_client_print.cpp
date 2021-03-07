@@ -1,6 +1,6 @@
 // This file is part of BOINC.
 // http://boinc.berkeley.edu
-// Copyright (C) 2008 University of California
+// Copyright (C) 2019 University of California
 //
 // BOINC is free software; you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License
@@ -18,11 +18,8 @@
 // This file is code to print (in ASCII) the stuff returned by GUI RPC.
 // Used only by boinccmd.
 
-#if defined(_WIN32) && !defined(__STDWX_H__) && !defined(_BOINC_WIN_) && !defined(_AFX_STDAFX_H_)
+#if defined(_WIN32)
 #include "boinc_win.h"
-#endif
-
-#ifdef _WIN32
 #include "../version.h"
 #else
 #include "config.h"
@@ -99,7 +96,7 @@ void PROJECT::print() {
     printf("   ended: %s\n", ended?"yes":"no");
     printf("   suspended via GUI: %s\n", suspended_via_gui?"yes":"no");
     printf("   don't request more work: %s\n", dont_request_more_work?"yes":"no");
-    printf("   disk usage: %f\n", disk_usage);
+    printf("   disk usage: %.2fMB\n", disk_usage/MEGA);
     time_t foo = (time_t)last_rpc_time;
     printf("   last RPC: %s\n", ctime(&foo));
     printf("   project files downloaded: %f\n", project_files_downloaded_time);
@@ -174,11 +171,14 @@ void RESULT::print() {
             printf("   suspended via GUI: yes\n");
         }
         printf("   estimated CPU time remaining: %f\n", estimated_cpu_time_remaining);
+        printf("   elapsed task time: %f\n", elapsed_time);
     }
 
     // stuff for jobs that are running or have run
     //
     if (scheduler_state > CPU_SCHED_UNINITIALIZED) {
+        printf("   slot: %d\n", slot);
+        printf("   PID: %d\n", pid);
         printf("   CPU time at last checkpoint: %f\n", checkpoint_cpu_time);
         printf("   current CPU time: %f\n", current_cpu_time);
         printf("   fraction done: %f\n", fraction_done);
@@ -426,8 +426,8 @@ void PROJECTS::print_urls() {
 void DISK_USAGE::print() {
     unsigned int i;
     printf("======== Disk usage ========\n");
-    printf("total: %f\n", d_total);
-    printf("free: %f\n", d_free);
+    printf("total: %.2fMB\n", d_total/MEGA);
+    printf("free: %.2fMB\n", d_free/MEGA);
     for (i=0; i<projects.size(); i++) {
         printf("%d) -----------\n", i+1);
         projects[i]->print_disk_usage();
