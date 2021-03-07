@@ -5,6 +5,7 @@
 *.user
 *.ncb
 *.suo
+*.pdb
 
 # Visual Studio build directories
 /win_build/Build/
@@ -34,6 +35,9 @@
 /html/nbproject/
 *.project
 
+# CLion files
+.idea
+
 #
 *.pfx
 *.pvk
@@ -49,10 +53,17 @@
 /android/**/*.iml
 /android/**/.gradle
 /android/**/local.properties
-/android/**/.idea
+/android/**/.idea/caches
+/android/**/.idea/libraries
+/android/**/.idea/gradle.xml
+/android/**/.idea/modules.xml
+/android/**/.idea/tasks.xml
+/android/**/.idea/usage.statistics.xml
+/android/**/.idea/workspace.xml
 /android/**/build
 /android/**/captures
 /android/**/.externalNativeBuild
+/android/**/.vagrant
 /stage
 /android/BOINC/app/src/main/assets/arm*
 /android/BOINC/app/src/main/assets/mips*
@@ -117,12 +128,19 @@ drupal/sites/default/project
 locale/*/*.flag
 
 ## dependency builds and CI cache directories
+3rdParty/Windows/
 3rdParty/linux/
 3rdParty/mac/
 3rdParty/buildCache/
+3rdParty/android/
 
 .libs/
 svn_version.h
+
+## code coverage
+*.gcov
+*.gcno
+*.gcda
 
 # list of executables
 apps/1sec

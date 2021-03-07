@@ -3,7 +3,7 @@ set -e
 
 # This file is part of BOINC.
 # http://boinc.berkeley.edu
-# Copyright (C) 2018 University of California
+# Copyright (C) 2020 University of California
 #
 # BOINC is free software; you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License
@@ -19,9 +19,12 @@ set -e
 # along with BOINC.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-export OPENSSL_VERSION=1.0.2p
-export CURL_VERSION=7.61.0
-export NDK_VERSION=17c
+# When you want to invalidate openssl and curl without change their versions.
+export REV=1
+export OPENSSL_VERSION=1.0.2s
+export CURL_VERSION=7.62.0
+export NDK_VERSION=21d
+export NDK_ARMV6_VERSION=11
 
 export ANDROID_HOME=$HOME/Android/Sdk
 export NDK_ROOT=$HOME/Android/Ndk
@@ -47,6 +50,10 @@ isPathCanonical() {
 doclean=""
 cache_dir=""
 arch=""
+silent=""
+verbose="${VERBOSE:-no}"
+ci=""
+
 while [ $# -gt 0 ]; do
     key="$1"
     case $key in
@@ -64,6 +71,15 @@ while [ $# -gt 0 ]; do
         --arch)
         arch="$2"
         shift
+        ;;
+        --silent)
+        silent="yes"
+        ;;
+        --verbose)
+        verbose="yes"
+        ;;
+        --ci)
+        ci="yes"
         ;;
         *)
         echo "unrecognized option $key"
@@ -87,7 +103,7 @@ fi
 
 if [ "x$build_dir" != "x" ]; then
     if isPathCanonical "$build_dir" && [ "$build_dir" != "/" ]; then
-         PREFIX="$build_dir"
+         BUILD_DIR="$build_dir"
      else
          echo "build_dir must be an absolute path without ./ or ../ in it"
          exit 1
@@ -108,63 +124,142 @@ if [ "${doclean}" = "yes" ]; then
     echo "cleaning build dir"
     rm -rf "${BUILD_DIR}"
     mkdir -p "${BUILD_DIR}"
+    echo "cleaning downloaded cache files"
+    rm -f /tmp/ndk_${NDK_VERSION}.zip
+    rm -f /tmp/ndk_armv6_${NDK_ARMV6_VERSION}.zip
+    rm -f /tmp/openssl_${OPENSSL_VERSION}.tgz
+    rm -f /tmp/curl_${CURL_VERSION}.tgz
+fi
+
+if [ "${silent}" = "yes" ]; then
+    export STDOUT_TARGET="/dev/null"
 fi
 
 export COMPILEOPENSSL="no"
-OPENSSL_FLAGFILE="$PREFIX/openssl-${OPENSSL_VERSION}_done"
+export COMPILECURL="no"
+export NDK_FLAGFILE="$PREFIX/NDK-${NDK_VERSION}_done"
+export NDK_CI_FLAGFILE="$PREFIX/NDK-${NDK_VERSION}-${arch}-${REV}_done"
+export NDK_ARMV6_FLAGFILE="$PREFIX/NDK-${NDK_ARMV6_VERSION}_armv6_done"
+export CREATED_NDK_FOLDER=${CREATED_NDK_FOLDER:-"no"}
+
+if [ "$arch" = armv6 ]; then
+    export CURL_FLAGFILE="$PREFIX/curl-${CURL_VERSION}-${NDK_ARMV6_VERSION}-${arch}_done"
+    export OPENSSL_FLAGFILE="$PREFIX/openssl-${OPENSSL_VERSION}-${NDK_ARMV6_VERSION}-${arch}_done"
+else
+    export CURL_FLAGFILE="$PREFIX/curl-${CURL_VERSION}-${NDK_VERSION}-${arch}_done"
+    export OPENSSL_FLAGFILE="$PREFIX/openssl-${OPENSSL_VERSION}-${NDK_VERSION}-${arch}_done"
+fi
+
+createNDKFolder()
+{
+    if [ $CREATED_NDK_FOLDER = "no" ]; then
+        rm -rf "$BUILD_DIR/android-ndk-r${NDK_VERSION}"
+        wget -c --no-verbose -O /tmp/ndk_${NDK_VERSION}.zip https://dl.google.com/android/repository/android-ndk-r${NDK_VERSION}-linux-x86_64.zip
+        unzip -qq /tmp/ndk_${NDK_VERSION}.zip -d $BUILD_DIR
+        export CREATED_NDK_FOLDER="yes"
+    fi
+}
+
+if [ "$ci" = "yes" ]; then
+    if [ ! -e "${NDK_CI_FLAGFILE}" ]; then
+        rm -rf "${PREFIX}/${arch}"
+        rm -rf "${OPENSSL_FLAGFILE}"
+        rm -rf "${CURL_FLAGFILE}"
+        touch "${NDK_CI_FLAGFILE}"
+    fi
+    createNDKFolder
+else
+    if [ ! -e "${NDK_FLAGFILE}" ]; then
+        export CREATED_NDK_FOLDER="no"
+        createNDKFolder
+        touch "${NDK_FLAGFILE}"
+    fi
+fi
+
+if [ ! -e "${NDK_ARMV6_FLAGFILE}" ]; then
+    rm -rf "$BUILD_DIR/android-ndk-r${NDK_ARMV6_VERSION}"
+    wget -c --no-verbose -O /tmp/ndk_armv6_${NDK_ARMV6_VERSION}.zip https://dl.google.com/android/repository/android-ndk-r${NDK_ARMV6_VERSION}-linux-x86_64.zip
+    unzip -qq /tmp/ndk_armv6_${NDK_ARMV6_VERSION}.zip -d $BUILD_DIR
+    touch "${NDK_ARMV6_FLAGFILE}"
+fi
+
+export NDK_ROOT=$BUILD_DIR/android-ndk-r${NDK_VERSION}
+export NDK_ARMV6_ROOT=$BUILD_DIR/android-ndk-r${NDK_ARMV6_VERSION}
+
 if [ ! -e "${OPENSSL_FLAGFILE}" ]; then
-    wget -O /tmp/openssl.tgz https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
-    tar xzf /tmp/openssl.tgz --directory=$BUILD_DIR
+    rm -rf "$BUILD_DIR/openssl-${OPENSSL_VERSION}"
+    wget -c --no-verbose -O /tmp/openssl_${OPENSSL_VERSION}.tgz https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+    tar xzf /tmp/openssl_${OPENSSL_VERSION}.tgz --directory=$BUILD_DIR
     export COMPILEOPENSSL="yes"
-    touch "${OPENSSL_FLAGFILE}"
 fi
 export OPENSSL_SRC=$BUILD_DIR/openssl-${OPENSSL_VERSION}
 
-export COMPILECURL="no"
-CURL_FLAGFILE="$PREFIX/curl-${CURL_VERSION}_done"
 if [ ! -e "${CURL_FLAGFILE}" ]; then
-    wget -O /tmp/curl.tgz https://curl.haxx.se/download/curl-${CURL_VERSION}.tar.gz
-    tar xzf /tmp/curl.tgz --directory=$BUILD_DIR
+    rm -rf "$BUILD_DIR/curl-${CURL_VERSION}"
+    wget -c --no-verbose -O /tmp/curl_${CURL_VERSION}.tgz https://curl.haxx.se/download/curl-${CURL_VERSION}.tar.gz
+    tar xzf /tmp/curl_${CURL_VERSION}.tgz --directory=$BUILD_DIR
     export COMPILECURL="yes"
-    touch "${CURL_FLAGFILE}"
 fi
 export CURL_SRC=$BUILD_DIR/curl-${CURL_VERSION}
 
-export NDK_FLAGFILE="$PREFIX/NDK-${NDK_VERSION}-${arch}_done"
-if [ ! -e "${NDK_FLAGFILE}" ]; then
-    rm -rf "${PREFIX}/${arch}"
-    wget -O /tmp/ndk.zip https://dl.google.com/android/repository/android-ndk-r${NDK_VERSION}-linux-x86_64.zip
-    unzip -qq /tmp/ndk.zip -d $HOME
-    touch "${NDK_FLAGFILE}"
-fi
-export NDK_ROOT=$HOME/android-ndk-r${NDK_VERSION}
-
 export ANDROID_TC=$PREFIX
 
+export VERBOSE=$verbose
+
+NeonTest()
+{
+    list_libs="libcrypto.a libssl.a libcurl.a"
+
+    for i in $list_libs; do
+        if [ $(readelf -A $(find $ANDROID_TC/${arch} -name "$i") | grep -i neon | head -c1 | wc -c) -ne 0 ]; then
+            echo [ERROR] "$i" contains neon optimization
+            exit 1
+        fi
+    done
+}
+
+Armv6Test()
+{
+    list_libs="libcrypto.a libssl.a libcurl.a boinc"
+
+    for i in $list_libs; do
+        if [ $(readelf -A $(find $ANDROID_TC/armv6 "BOINC/app/src/main/assets/armeabi" -name "$i") | grep -i "Tag_CPU_arch: v6" | head -c1 | wc -c) -eq 0 ]; then
+            echo [ERROR] "$i" is not armv6 cpu arch
+            exit 1
+        fi
+    done
+}
+
 case "$arch" in
+    "armv6")
+        ./build_androidtc_armv6.sh
+        ./build_openssl_armv6.sh
+        ./build_curl_armv6.sh
+        ./build_boinc_armv6.sh
+        NeonTest
+        Armv6Test
+        exit 0
+    ;;
     "arm")
-        ./build_androidtc_arm.sh
         ./build_openssl_arm.sh
         ./build_curl_arm.sh
         ./build_boinc_arm.sh
+        NeonTest
         exit 0
     ;;
     "arm64")
-        ./build_androidtc_arm64.sh
         ./build_openssl_arm64.sh
         ./build_curl_arm64.sh
         ./build_boinc_arm64.sh
         exit 0
     ;;
     "x86")
-        ./build_androidtc_x86.sh
         ./build_openssl_x86.sh
         ./build_curl_x86.sh
         ./build_boinc_x86.sh
         exit 0
     ;;
     "x86_64")
-        ./build_androidtc_x86_64.sh
         ./build_openssl_x86_64.sh
         ./build_curl_x86_64.sh
         ./build_boinc_x86_64.sh
