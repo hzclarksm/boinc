@@ -184,6 +184,13 @@ def query_batches(req):
     ) %(req.authenticator, 1 if req.get_cpu_time else 0)
     return do_http_post(req_xml, req.project)
 
+def query_batches_status(req):
+    req_xml = ('<query_batches_status>\n'
+    '<authenticator>%s</authenticator>\n'
+    '</query_batches_status>\n'
+    ) %(req.authenticator)
+    return do_http_post(req_xml, req.project)
+
 def query_completed_job(req):
     req_xml = ('<query_completed_job>\n'
     '<authenticator>%s</authenticator>\n'
@@ -272,11 +279,14 @@ def upload_files(upload_files_req):
     query_req.boinc_names = upload_files_req.boinc_names
     query_req_xml = query_req.to_xml()
     reply = do_http_post(query_req_xml, upload_files_req.project, 'job_file.php')
-    if reply[0].tag == 'error':
+    if reply.find('error') is not None:
         return reply
 
-    absent = reply.find('absent_files').findall('file')
-    #print('query files succeeded; ',len(absent), ' files need upload')
+    try:
+        absent = reply.find('absent_files').findall('file')
+    except:
+        absent = []
+    #print 'query files succeeded; ',len(absent), ' files need upload'
     boinc_names = []
     local_names = []
     for n in absent:
