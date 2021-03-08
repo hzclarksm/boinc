@@ -175,21 +175,21 @@ function show_status_html($x) {
         tra("Runtime of last 100 tasks in hours: average, min, max"),
         tra("Users in last 24 hours")
     );
-    foreach ($j->apps as $app) {
-        $avg = round($app->info->avg, 2);
-        $min = round($app->info->min, 2);
-        $max = round($app->info->max, 2);
-        $x = $max?"$avg ($min - $max)":"---";
-        $u = $app->info->users;
-        echo "<tr>
-            <td>$app->user_friendly_name</td>
-            <td>$app->unsent</td>
-            <td>$app->in_progress</td>
-            <td>$x</td>
-            <td>$u</td>
-            </tr>
-        ";
-    }
+//  foreach ($j->apps as $app) {
+//      $avg = round($app->info->avg, 2);
+//      $min = round($app->info->min, 2);
+//      $max = round($app->info->max, 2);
+//      $x = $max?"$avg ($min - $max)":"---";
+//      $u = $app->info->users;
+//      echo "<tr>
+//          <td>$app->user_friendly_name</td>
+//          <td>$app->unsent</td>
+//          <td>$app->in_progress</td>
+//          <td>$x</td>
+//          <td>$u</td>
+//          </tr>
+//      ";
+//  }
     end_table();
     
     // show server software version.
@@ -245,18 +245,18 @@ function show_status_xml($x) {
     item_xml("hosts_registered_in_past_24_hours", $j->hosts_past_24_hours);
     item_xml("current_floating_point_speed", $j->flops);
     echo "<tasks_by_app>\n";
-    foreach ($j->apps as $app) {
-        echo "<app>\n";
-        item_xml("id", $app->id);
-        item_xml("name", $app->name);
-        item_xml("unsent", $app->unsent);
-        item_xml("in_progress", $app->in_progress);
-        item_xml("avg_runtime", $app->info->avg);
-        item_xml("min_runtime", $app->info->min);
-        item_xml("max_runtime", $app->info->max);
-        item_xml("users", $app->info->users);
-        echo "</app>\n";
-    }
+//  foreach ($j->apps as $app) {
+//      echo "<app>\n";
+//      item_xml("id", $app->id);
+//      item_xml("name", $app->name);
+//      item_xml("unsent", $app->unsent);
+//      item_xml("in_progress", $app->in_progress);
+//      item_xml("avg_runtime", $app->info->avg);
+//      item_xml("min_runtime", $app->info->min);
+//      item_xml("max_runtime", $app->info->max);
+//      item_xml("users", $app->info->users);
+//      echo "</app>\n";
+//  }
     echo "</tasks_by_app>
 </database_file_states>
 </server_status>
@@ -410,21 +410,21 @@ function get_job_status() {
 
     $s = new StdClass;
     $apps = BoincApp::enum("deprecated=0");
-    foreach ($apps as $app) {
-        $info = BoincDB::get()->lookup_fields("result", "stdClass",
-            "ceil(avg(elapsed_time)/3600*100)/100 as avg,
-            ceil(min(elapsed_time)/3600*100)/100 as min,
-            ceil(max(elapsed_time)/3600*100)/100 as max,
-            count(distinct userid) as users",
-            "appid = $app->id
-            AND validate_state=1
-            AND received_time > (unix_timestamp()-86400)
-            "
-        );
-        $app->info = $info;
-        $app->unsent = BoincResult::count("appid=$app->id and server_state=2");
-        $app->in_progress = BoincResult::count("appid=$app->id and server_state=4");
-    }
+//  foreach ($apps as $app) {
+//      $info = BoincDB::get()->lookup_fields("result", "stdClass",
+//          "ceil(avg(elapsed_time)/3600*100)/100 as avg,
+//          ceil(min(elapsed_time)/3600*100)/100 as min,
+//          ceil(max(elapsed_time)/3600*100)/100 as max,
+//          count(distinct userid) as users",
+//          "appid = $app->id
+//          AND validate_state=1
+//          AND received_time > (unix_timestamp()-86400)
+//          "
+//      );
+//      $app->info = $info;
+//      $app->unsent = BoincResult::count("appid=$app->id and server_state=2");
+//      $app->in_progress = BoincResult::count("appid=$app->id and server_state=4");
+//  }
     $s->apps = $apps;
     $s->results_ready_to_send = BoincResult::count("server_state=2");
     $s->results_in_progress = BoincResult::count("server_state=4");
